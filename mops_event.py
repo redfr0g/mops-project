@@ -15,8 +15,15 @@ class MopsEvent:
         self.type = event_type
         self.packet_idx = packet_idx
 
-    def __lt__(self, other):
-        return self.time < other.time
+    def __lt__(self, other):  # if you want to know something about this write to me directly
+        if self.time == other.time:
+            if self.type == MopsEventType.START_SERVICE:
+                return False
+            elif self.type == MopsEventType.ARRIVAL:
+                return True
+        else:
+            return self.time < other.time
+
 
 class MopsEventType(Enum):
     ARRIVAL = 1
