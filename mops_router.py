@@ -4,7 +4,7 @@ from queue import PriorityQueue, Queue
 class MopsRouter:
     """Router class, each router has event queue and buffer queue."""
     def __init__(self, buffer_size=0):
-        self.event_queue = PriorityQueue(0)
+       # self.event_queue = PriorityQueue(0)
         self.buffer_size = buffer_size
         self.packets_lost = 0
         self.busy = False

@@ -5,7 +5,7 @@ from mops_packet import MopsPacket
 from numpy.random import exponential  # argument to this function is 1/lambda
 import time
 from numpy.random import poisson
-from queue import Empty
+from queue import Empty, PriorityQueue
 import math
 import matplotlib.pyplot as plt
 
@@ -17,11 +17,9 @@ class MopsSimulation:
         self.max_time = max_time
         self.max_event_count = max_event_count
         self.max_packet_count = max_packet_count
-        if not 0 < (1/lambd)/(1/mi) < 1:
-            raise ValueError("Lambda to mi ratio is not between 0 and 1.")
-        self.lambd = 1/lambd  # lambda is Python keyword
+        self.lambd = lambd  # lambda is Python keyword
         print("Lambda: {}".format(lambd))
-        self.mi = 1/mi
+        self.mi = mi
         print("Mi: {}".format(mi))
         self.event_count = 0
         self.time = 0
@@ -35,16 +33,17 @@ class MopsSimulation:
             else:
                 self.routers = [MopsRouter(queue_sizes[i]) for i in range(routers_number)]
         self.routers_in_queue = []
+        self.event_queue = PriorityQueue(0)
 
     def run(self):
-        e = MopsEvent(time=self.time, event_type=MType.ARRIVAL, packet_idx=0)  # make first event
+        e = MopsEvent(time=self.time, event_type=MType.ARRIVAL, packet_idx=0, router_idx=0)  # make first event
         self.packet_list.append(MopsPacket(len(self.packet_list), len(self.routers)))
         self.packet_list[0].times[0][MType.ARRIVAL] = e.time
-        self.routers[0].event_queue.put((self.time, e))
+        self.event_queue.put((self.time, e))
         
         while not self.end():
-            event, router_idx = self.return_next_event()
-            self.handle_event(router_idx, event)
+            t, event = self.event_queue.get()
+            self.handle_event(event.router_idx, event)
 
         self.print_statistics()
 
@@ -76,25 +75,6 @@ class MopsSimulation:
             return self.event_count >= self.max_event_count
         elif self.max_packet_count is not None:
             return len(self.packet_list) >= self.max_packet_count
-
-    def return_next_event(self):
-        """Take events from all the event queues and choose this one with the smallest time and return it,
-        the other ones add again.
-        :return event and router in which event occurs"""
-        event_list = []
-        for router in self.routers:
-            try:
-                e = router.event_queue.get(block=False)
-                event_list.append(e)
-            except Empty:  # if event queue is empty, put None with time=infinity, so it wouldn't be chosen
-                event_list.append((math.inf, None))
-
-        event = min(event_list, key=lambda x: x[0])  # return event with the smallest time
-        idx = event_list.index(event)
-        for i in range(len(event_list)):
-            if i != idx:
-                self.routers[i].event_queue.put(event_list[i])  # put the others in the queues once again
-        return event[1], idx  # return event and router index
 
     def handle_event(self, router_idx, event):
         """
@@ -145,13 +125,13 @@ class MopsSimulation:
             packet = MopsPacket(len(self.packet_list), len(self.routers))
             packet.times[router_idx][MType.ARRIVAL] = t
             self.packet_list.append(packet)
-            e = MopsEvent(t, event_type=MType.ARRIVAL, packet_idx=packet.packet_idx)
+            e = MopsEvent(t, event_type=MType.ARRIVAL, packet_idx=packet.packet_idx, router_idx=router_idx)
         else:  # otherwise just send existing packet to the next router
             t = self.packet_list[packet_idx].times[router_idx - 1][MType.END_SERVICE]
-            e = MopsEvent(t, event_type=MType.ARRIVAL, packet_idx=packet_idx)
+            e = MopsEvent(t, event_type=MType.ARRIVAL, packet_idx=packet_idx, router_idx=router_idx)
             self.packet_list[packet_idx].times[router_idx][MType.ARRIVAL] = t
 
-        self.routers[router_idx].event_queue.put((t, e))
+        self.event_queue.put((t, e))
 
     def handle_type_start_service(self, router_idx, packet_idx):
         """
@@ -169,9 +149,9 @@ class MopsSimulation:
         :param packet_idx: index of a packet
         """
         t = self.time
-        e = MopsEvent(time=self.time, event_type=MType.START_SERVICE, packet_idx=packet_idx)
+        e = MopsEvent(time=self.time, event_type=MType.START_SERVICE, packet_idx=packet_idx, router_idx=router_idx)
         self.packet_list[packet_idx].times[router_idx][MType.START_SERVICE] = t
-        self.routers[router_idx].event_queue.put((t, e))
+        self.event_queue.put((t, e))
 
     def handle_type_end_service(self, router_idx, packet_idx):
         """Handle event MType.END_SERVICE by taking new packet to the service or setting router to not busy
@@ -194,14 +174,14 @@ class MopsSimulation:
         :param router_idx: index of a router in which event should be put
         :param packet_idx: index of a packet"""
         t = self.time + exponential(1/self.mi)
-        e = MopsEvent(time=t, event_type=MType.END_SERVICE, packet_idx=packet_idx)
+        e = MopsEvent(time=t, event_type=MType.END_SERVICE, packet_idx=packet_idx, router_idx=router_idx)
         self.packet_list[packet_idx].times[router_idx][MType.END_SERVICE] = t
-        self.routers[router_idx].event_queue.put((t, e))
+        self.event_queue.put((t, e))
 
     def print_statistics(self):
         """Print statistics about delays, delays variation and packet losses."""
-        plt.plot(self.routers_in_queue)
-        plt.show()
+      #  plt.plot(self.routers_in_queue)
+     #   plt.show()
         lost = 0
         delays = []
         waiting_in_queue = []
@@ -261,8 +241,8 @@ class MopsSimulation:
             print(lost)
             print(lost1)
 
-        print("Packet lost: {}%".format(100 * round(lost / len(self.packet_list), 2)))
-        print("Packet lost: {}%".format(100 * round(lost1 / len(self.packet_list), 2)))
+        print("Packet lost: {}%".format(round(100 * lost / len(self.packet_list), 2)))
+        print("Packet lost: {}%".format(round(100 * lost1 / len(self.packet_list), 2)))
         print("Number of events: {}, number of packets: {}, time: {}".format(self.event_count, len(self.packet_list), self.time))
 
         fig, ax = plt.subplots()
@@ -271,7 +251,7 @@ class MopsSimulation:
         ax.plot([ipdv95 + delays[0], ipdv95 + delays[0]], [0.95*max(data[0]), 0], color='red')
         ax.text((ipdv95 + delays[0])*0.9, max(data[0]), "centyl 95")
         ax.plot([ipdv99 + delays[0], ipdv99 + delays[0]], [0.9*max(data[0]), 0], color='green')
-        ax.text((ipdv99 + delays[0])*0.9, max(data[0]), "centyl99")
+        ax.text((ipdv99 + delays[0])*0.9, max(data[0]), "centyl 99")
         ax.set_xlabel('Delay.')
         ax.set_ylabel('Number of occurrences.')
 
@@ -280,7 +260,7 @@ class MopsSimulation:
 
 
 if __name__ == '__main__':
-    s = MopsSimulation(1, 0.5, 0.49, max_packet_count=10000, queue_sizes=[1])
+    s = MopsSimulation(1, 5, 9, max_packet_count=1000000, queue_sizes=[0])
     # s = MopsSimulation(1,1, 2, queue_sizes=[19900])
     s.run()
 
