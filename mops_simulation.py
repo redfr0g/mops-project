@@ -230,7 +230,7 @@ class MopsSimulation:
             print("Average time of service in {} router's queue is: {}".format(i, sum(service_time) / len(service_time)))
             waiting_in_queue.append(waiting)
         traffic = self.lambd / self.mi
-        print("Average traffic (theoretical): {}".format(traffic))
+        print("Average traffic (ro) (theoretical): {}".format(traffic))
         print("Average waiting time (theoretical): {}".format(traffic / self.mi / (1 - traffic)))
 
         for packet in self.packet_list:
@@ -280,7 +280,7 @@ class MopsSimulation:
 
 
 if __name__ == '__main__':
-    s = MopsSimulation(1, 1.5, 0.5, max_packet_count=100, queue_sizes=[0])
+    s = MopsSimulation(1, 0.5, 0.49, max_packet_count=10000, queue_sizes=[1])
     # s = MopsSimulation(1,1, 2, queue_sizes=[19900])
     s.run()
 
