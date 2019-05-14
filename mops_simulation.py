@@ -32,7 +32,7 @@ class MopsSimulation:
                 raise ValueError("Number of queues sizes isn't equal to router number.")
             else:
                 self.routers = [MopsRouter(queue_sizes[i]) for i in range(routers_number)]
-        self.routers_in_queue = []
+        self.packets_in_queue = []
         self.event_queue = PriorityQueue(0)
 
     def run(self):
@@ -45,6 +45,7 @@ class MopsSimulation:
             t, event = self.event_queue.get()
             self.handle_event(event.router_idx, event)
 
+
         self.print_statistics()
 
     def print_handle_event_log(self, event, router_idx):
@@ -55,26 +56,23 @@ class MopsSimulation:
         """
 
         if event.type == MType.ARRIVAL:
-            print("{}. event {}, packet idx {}, router idx {}, at {}"
-                  .format(self.event_count, "A", event.packet_idx, router_idx, self.time))
+            print("{}. event {}, packet idx {}, router idx {}, at {}, queue len: {}"
+                  .format(self.event_count, "A", event.packet_idx, router_idx, self.time, self.routers[0].buffer.qsize()))
         elif event.type == MType.START_SERVICE:
-            print("{}. event {}, packet idx {}, router idx {}, at {}"
-                  .format(self.event_count, "S", event.packet_idx,  router_idx, self.time))
+            print("{}. event {}, packet idx {}, router idx {}, at {}, queue len: {}"
+                  .format(self.event_count, "S", event.packet_idx,  router_idx, self.time, self.routers[0].buffer.qsize()))
         elif event.type == MType.END_SERVICE:
-            print("{}. event {}, packet idx {}, router idx {}, at {}"
-                  .format(self.event_count, "E", event.packet_idx,  router_idx, self.time))
+            print("{}. event {}, packet idx {}, router idx {}, at {}, queue len: {}"
+                  .format(self.event_count, "E", event.packet_idx,  router_idx, self.time, self.routers[0].buffer.qsize()))
 
     def end(self):
         """Return True if simulation should end, return False otherwise."""
-        if self.max_time is None and self.max_event_count is None and self.max_packet_count is None:
-            return False
-
-        if self.max_time is not None:
-            return self.time >= self.max_time
+        if self.max_packet_count is not None:
+            return len(self.packet_list) >= self.max_packet_count
         elif self.max_event_count is not None:
             return self.event_count >= self.max_event_count
-        elif self.max_packet_count is not None:
-            return len(self.packet_list) >= self.max_packet_count
+        elif self.max_time is not None:
+            return self.time >= self.max_time
 
     def handle_event(self, router_idx, event):
         """
@@ -112,7 +110,7 @@ class MopsSimulation:
         if router_idx == 0:
             self.put_arrival(router_idx, packet_idx)  # add new type.ARRIVAL type event if it is a first router
 
-        self.routers_in_queue.append(self.routers[0].buffer.qsize())
+        self.packets_in_queue.append(self.routers[0].buffer.qsize())
 
     def put_arrival(self, router_idx, packet_idx):
         """
@@ -180,8 +178,8 @@ class MopsSimulation:
 
     def print_statistics(self):
         """Print statistics about delays, delays variation and packet losses."""
-      #  plt.plot(self.routers_in_queue)
-     #   plt.show()
+        plt.plot(self.packets_in_queue)
+        plt.show()
         lost = 0
         delays = []
         waiting_in_queue = []
@@ -209,9 +207,10 @@ class MopsSimulation:
             print("Average time of waiting in {} router's queue is: {}".format(i, sum(waiting)/len(waiting)))
             print("Average time of service in {} router's queue is: {}".format(i, sum(service_time) / len(service_time)))
             waiting_in_queue.append(waiting)
-        traffic = self.lambd / self.mi
-        print("Average traffic (ro) (theoretical): {}".format(traffic))
-        print("Average waiting time (theoretical): {}".format(traffic / self.mi / (1 - traffic)))
+        if self.mi != self.lambd:
+            traffic = self.lambd / self.mi
+            print("Average traffic (ro) (theoretical): {}".format(traffic))
+            print("Average waiting time (theoretical): {}".format(traffic / self.mi / (1 - traffic)))
 
         for packet in self.packet_list:
             if packet.lost:
@@ -240,11 +239,15 @@ class MopsSimulation:
         if self.debug:
             print(lost)
             print(lost1)
+        print(delays[:50])
+        p = self.packet_list[400000]
+        print(delays[-50:])
 
-        print("Packet lost: {}%".format(round(100 * lost / len(self.packet_list), 2)))
-        print("Packet lost: {}%".format(round(100 * lost1 / len(self.packet_list), 2)))
+        print("Packets lost: {}%".format(round(100 * lost / len(self.packet_list), 2)))
+        print("Packets lost: {}%".format(round(100 * lost1 / len(self.packet_list), 2)))
         print("Number of events: {}, number of packets: {}, time: {}".format(self.event_count, len(self.packet_list), self.time))
-
+        plt.plot(delays)
+        plt.show()
         fig, ax = plt.subplots()
         data = ax.hist(delays)
 
@@ -260,7 +263,7 @@ class MopsSimulation:
 
 
 if __name__ == '__main__':
-    s = MopsSimulation(1, 5, 9, max_packet_count=1000000, queue_sizes=[0])
+    s = MopsSimulation(1, 3, 7, max_packet_count=1000000, queue_sizes=[1000000])
     # s = MopsSimulation(1,1, 2, queue_sizes=[19900])
     s.run()
 
