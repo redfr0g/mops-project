@@ -229,19 +229,11 @@ class MopsSimulation:
 
             wait_time = self.lambd/(self.mi*(self.mi - self.lambd))
 
-            pkts_in_system = self.lambd/(self.mi - self.lambd)
-
-            if pkts_in_system > self.routers[i].buffer_size:
-                iplr = pkts_in_system/self.routers[i].buffer_size - 1
-            else:
-                iplr = 0
-
             print("Average traffic (ro) (theoretical): {}".format(traffic))
             print("Average waiting time (theoretical): {}".format(wait_time))
             print("Average service time (theoretical): {}".format(1/(self.mi - self.lambd) - wait_time))
             print("Average time between arrivals (theoretical): {}".format(1/self.lambd))
-            print("Average packet loss ratio (theoretical): {}%".format(round(100 * iplr , 4)))             #TODO Sprawdzic poprawnosc wartosci teoretycznych dla roznych obciazen
-                                                                                                            #TODO Ewentualna korekta avIPLR 
+                                                                                                                #TODO Sprawdzic poprawnosc wartosci teoretycznych dla roznych obciazen
             print()
 
         for packet in self.packet_list:
