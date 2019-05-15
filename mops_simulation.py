@@ -221,10 +221,28 @@ class MopsSimulation:
             print("Average time of service in {} router's queue is: {}".format(i, sum(service_time) / len(service_time)))
             print ("Average time between arrivals in {} router's queue is: {}".format(i, sum(arrival_time) / len(arrival_time)))
             waiting_in_queue.append(waiting)
-        if self.mi != self.lambd:
+
+                                            #calculating theoretical values
+            #if self.mi != self.lambd:
+
             traffic = self.lambd / self.mi
+
+            wait_time = self.lambd/(self.mi*(self.mi - self.lambd))
+
+            pkts_in_system = self.lambd/(self.mi - self.lambd)
+
+            if pkts_in_system > self.routers[i].buffer_size:
+                iplr = pkts_in_system/self.routers[i].buffer_size - 1
+            else:
+                iplr = 0
+
             print("Average traffic (ro) (theoretical): {}".format(traffic))
-            print("Average waiting time (theoretical): {}".format(traffic / self.mi / (1 - traffic)))
+            print("Average waiting time (theoretical): {}".format(wait_time))
+            print("Average service time (theoretical): {}".format(1/(self.mi - self.lambd) - wait_time))
+            print("Average time between arrivals (theoretical): {}".format(1/self.lambd))
+            print("Average packet loss ratio (theoretical): {}%".format(round(100 * iplr , 4)))             #TODO Sprawdzic poprawnosc wartosci teoretycznych dla roznych obciazen
+                                                                                                            #TODO Ewentualna korekta avIPLR 
+            print()
 
         for packet in self.packet_list:
             if packet.lost:
@@ -253,9 +271,9 @@ class MopsSimulation:
         if self.debug:
             print(lost)
             print(lost1)
-        print(delays[:50])
+        #print(delays[:50])
         #p = self.packet_list[400000]                                                               #COMMENTED BECAUSE OF ERRORS
-        print(delays[-50:])
+        #print(delays[-50:])
 
         print("Packets lost: {}%".format(round(100 * lost / len(self.packet_list), 2)))
         print("Packets lost: {}%".format(round(100 * lost1 / len(self.packet_list), 2)))
@@ -277,7 +295,7 @@ class MopsSimulation:
 
 
 if __name__ == '__main__':
-    s = MopsSimulation(1, 100, 7, max_packet_count=1000, queue_sizes=[10])
+    s = MopsSimulation(1, 6, 7, max_packet_count=1000000, queue_sizes=[10])
     # s = MopsSimulation(1,1, 2, queue_sizes=[19900])
     s.run()
 
