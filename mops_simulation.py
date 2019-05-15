@@ -190,6 +190,7 @@ class MopsSimulation:
             lost += self.routers[i].packets_lost
             waiting = []
             service_time = []
+            arrival_time = []
             for packet in self.packet_list:
                 try:
                     start = packet.times[i][MType.ARRIVAL]
@@ -204,8 +205,21 @@ class MopsSimulation:
                 except KeyError:
                     pass
 
+
+            for j in range(len(self.packet_list)):
+                try:
+
+                    arrival1 = self.packet_list[j].times[i][MType.ARRIVAL]
+                    arrival2 = self.packet_list[j+1].times[i][MType.ARRIVAL]
+                    arrival_time.append(arrival2-arrival1)
+                except KeyError:
+                    pass
+                except IndexError:
+                    pass
+
             print("Average time of waiting in {} router's queue is: {}".format(i, sum(waiting)/len(waiting)))
             print("Average time of service in {} router's queue is: {}".format(i, sum(service_time) / len(service_time)))
+            print ("Average time between arrivals in {} router's queue is: {}".format(i, sum(arrival_time) / len(arrival_time)))
             waiting_in_queue.append(waiting)
         if self.mi != self.lambd:
             traffic = self.lambd / self.mi
@@ -240,7 +254,7 @@ class MopsSimulation:
             print(lost)
             print(lost1)
         print(delays[:50])
-        p = self.packet_list[400000]
+        #p = self.packet_list[400000]                                                               #COMMENTED BECAUSE OF ERRORS
         print(delays[-50:])
 
         print("Packets lost: {}%".format(round(100 * lost / len(self.packet_list), 2)))
@@ -263,7 +277,7 @@ class MopsSimulation:
 
 
 if __name__ == '__main__':
-    s = MopsSimulation(1, 3, 7, max_packet_count=1000000, queue_sizes=[1000000])
+    s = MopsSimulation(1, 100, 7, max_packet_count=1000, queue_sizes=[10])
     # s = MopsSimulation(1,1, 2, queue_sizes=[19900])
     s.run()
 
