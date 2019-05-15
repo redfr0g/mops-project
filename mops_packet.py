@@ -1,4 +1,7 @@
 
+
+#added 15.05.2019
+
 class MopsPacket:
     def __init__(self, packet_idx, router_number):
         self.packet_idx = packet_idx
